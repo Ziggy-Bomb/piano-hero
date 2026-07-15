@@ -1,0 +1,14 @@
+{
+  "name": "Piano Hero",
+  "short_name": "Piano Hero",
+  "description": "Practice piano with live listening, stars and streaks",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#1e1b4b",
+  "theme_color": "#1e1b4b",
+  "icons": [
+    { "src": "./icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

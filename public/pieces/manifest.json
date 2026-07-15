@@ -1,0 +1,24 @@
+{
+  "pieces": [
+    {
+      "id": "ode-to-joy",
+      "title": "Ode to Joy",
+      "composer": "L. van Beethoven",
+      "file": "ode-to-joy.musicxml",
+      "targetTempo": 108,
+      "beatsPerBar": 4,
+      "level": 1,
+      "assigned": true
+    },
+    {
+      "id": "twinkle-twinkle",
+      "title": "Twinkle, Twinkle, Little Star",
+      "composer": "Traditional",
+      "file": "twinkle-twinkle.musicxml",
+      "targetTempo": 100,
+      "beatsPerBar": 4,
+      "level": 1,
+      "assigned": true
+    }
+  ]
+}

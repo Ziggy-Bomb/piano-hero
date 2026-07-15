@@ -1,0 +1,176 @@
+// The grown-ups screen: piece management (import/assign), detection leniency,
+// calibration, progress backup.
+
+import { useRef, useState } from "react";
+import { useStore } from "../state/store";
+import { usePieces } from "../ui/usePieces";
+import {
+  importPieceFromFile,
+  removeImportedPiece,
+  updateImportedPiece,
+} from "../pieces/library";
+
+export function Settings() {
+  const setScreen = useStore((s) => s.setScreen);
+  const leniency = useStore((s) => s.leniency);
+  const setLeniency = useStore((s) => s.setLeniency);
+  const calibration = useStore((s) => s.calibration);
+  const exportProgress = useStore((s) => s.exportProgress);
+  const importProgress = useStore((s) => s.importProgress);
+  const sessions = useStore((s) => s.sessions);
+  const { pieces, reload } = usePieces();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const progressFileRef = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const flash = (m: string) => {
+    setMsg(m);
+    window.setTimeout(() => setMsg(null), 4000);
+  };
+
+  const onImportPiece = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const meta = await importPieceFromFile(file);
+      reload();
+      flash(`✅ Added "${meta.title}"`);
+    } catch (e) {
+      flash(`❌ ${String((e as Error).message ?? e)}`);
+    }
+  };
+
+  const onToggleAssigned = async (id: string) => {
+    const p = pieces.find((x) => x.id === id);
+    if (!p || p.source !== "import") return;
+    await updateImportedPiece({ ...p, assigned: !p.assigned });
+    reload();
+  };
+
+  const onRemove = async (id: string) => {
+    const p = pieces.find((x) => x.id === id);
+    if (!p || p.source !== "import") return;
+    if (!window.confirm(`Remove "${p.title}"? Its stars will be kept.`)) return;
+    await removeImportedPiece(id);
+    reload();
+  };
+
+  const onExport = () => {
+    const blob = new Blob([exportProgress()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `piano-hero-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const onImportProgress = async (file: File | undefined) => {
+    if (!file) return;
+    const ok = importProgress(await file.text());
+    flash(ok ? "✅ Progress restored" : "❌ That file didn't work");
+  };
+
+  const last14 = sessions.slice(-14);
+  const totalMin = Math.round(last14.reduce((s, x) => s + x.minutes, 0));
+
+  return (
+    <div className="screen settings">
+      <header className="home-header">
+        <h1>⚙️ Grown-ups</h1>
+      </header>
+      {msg && <div className="toast">{msg}</div>}
+
+      <section>
+        <h2 className="section-title">🎼 Pieces</h2>
+        <div className="settings-pieces">
+          {pieces.map((p) => (
+            <div key={p.id} className="settings-piece-row">
+              <div>
+                <div className="sp-title">{p.title}</div>
+                <div className="sp-sub">
+                  {p.composer} · ♩={p.targetTempo} · {p.source === "repo" ? "built-in" : "imported"}
+                </div>
+              </div>
+              {p.source === "import" && (
+                <div className="sp-actions">
+                  <button className="btn-small" onClick={() => onToggleAssigned(p.id)}>
+                    {p.assigned ? "Hide" : "Show"}
+                  </button>
+                  <button className="btn-small danger" onClick={() => onRemove(p.id)}>
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".musicxml,.xml"
+          hidden
+          onChange={(e) => onImportPiece(e.target.files?.[0])}
+        />
+        <button className="btn-big" onClick={() => fileRef.current?.click()}>
+          ➕ Add a piece (MusicXML file)
+        </button>
+        <p className="muted">
+          Got sheet music on paper? Ask Claude to turn a photo of it into a MusicXML
+          file, then add it here.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="section-title">🎤 Listening</h2>
+        <div className="settings-row">
+          <span>Note detection</span>
+          <div className="segmented">
+            <button
+              className={leniency === "generous" ? "on" : ""}
+              onClick={() => setLeniency("generous")}
+            >
+              Generous
+            </button>
+            <button
+              className={leniency === "normal" ? "on" : ""}
+              onClick={() => setLeniency("normal")}
+            >
+              Normal
+            </button>
+          </div>
+        </div>
+        <p className="muted">
+          Generous forgives octave slips everywhere and keeps thresholds soft. Switch to
+          Normal once detection is working well on your piano.
+        </p>
+        <button className="btn-big btn-secondary" onClick={() => setScreen("calibrate")}>
+          🎹 Calibrate for your piano {calibration ? "(done ✓)" : "(not done yet)"}
+        </button>
+      </section>
+
+      <section>
+        <h2 className="section-title">📈 Practice</h2>
+        <p className="muted">Last 14 days: {totalMin} minutes across {last14.length} day(s).</p>
+        <div className="settings-row">
+          <button className="btn-small" onClick={onExport}>Export progress</button>
+          <input
+            ref={progressFileRef}
+            type="file"
+            accept=".json"
+            hidden
+            onChange={(e) => onImportProgress(e.target.files?.[0])}
+          />
+          <button className="btn-small" onClick={() => progressFileRef.current?.click()}>
+            Restore progress
+          </button>
+        </div>
+      </section>
+
+      <nav className="bottom-nav">
+        <button className="nav-btn" onClick={() => setScreen("home")}>🏠 Home</button>
+        <button className="nav-btn" onClick={() => setScreen("rewards")}>🎁 Rewards</button>
+        <button className="nav-btn active">⚙️ Grown-ups</button>
+      </nav>
+    </div>
+  );
+}
