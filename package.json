@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
     "canvas-confetti": "^1.9.3",
     "fft.js": "^4.0.4",
     "idb-keyval": "^6.2.1",

@@ -15,6 +15,15 @@ import { WaitModeController } from "../practice/waitMode";
 import { TempoModeController } from "../practice/tempoMode";
 import { PracticeSummary } from "../practice/types";
 import { tierById, nextTier, starsForAccuracy, PASS_ACCURACY, TIERS } from "../practice/tiers";
+import { nextStarGap } from "../practice/scoring";
+import {
+  deriveChunks,
+  resolveChunkRange,
+  sliceEventsByMeasures,
+  DEFAULT_MEASURES_PER_CHUNK,
+} from "../practice/chunks";
+import { PlaybackController } from "../audio/playback";
+import { buddyStage } from "../game/buddy";
 import { XP, multiplierForCombo } from "../game/config";
 import { celebrate, playJingle, smallSparkle } from "../game/celebrations";
 import { MiniKeyboard } from "../ui/MiniKeyboard";
@@ -26,14 +35,21 @@ type Phase = "loading" | "ready" | "listening" | "finished" | "error";
 export function Practice() {
   const pieceId = useStore((s) => s.activePieceId);
   const tierId = useStore((s) => s.activeTier);
+  const activeChunk = useStore((s) => s.activeChunk);
   const setScreen = useStore((s) => s.setScreen);
   const calibration = useStore((s) => s.calibration);
   const leniency = useStore((s) => s.leniency);
   const equipped = useStore((s) => s.equipped);
+  const hesitationSeconds = useStore((s) => s.hesitationSeconds);
+  const buddyName = useStore((s) => s.buddyName);
   const addXp = useStore((s) => s.addXp);
   const setComboStore = useStore((s) => s.setCombo);
   const recordTierResult = useStore((s) => s.recordTierResult);
+  const recordChunkResult = useStore((s) => s.recordChunkResult);
   const logPracticeTime = useStore((s) => s.logPracticeTime);
+  const prevBestAccuracy = useStore((s) =>
+    pieceId && tierId ? s.pieces[pieceId]?.tiers[tierId]?.bestAccuracy ?? 0 : 0,
+  );
 
   const tier = useMemo(() => (tierId ? tierById(tierId) : TIERS[0]), [tierId]);
 
@@ -53,6 +69,9 @@ export function Practice() {
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
   const [starsEarned, setStarsEarned] = useState<0 | 1 | 2 | 3>(0);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [gentleHintMidis, setGentleHintMidis] = useState<number[] | null>(null);
+  const [hearing, setHearing] = useState(false);
+  const [newBest, setNewBest] = useState(false);
 
   const osmdRef = useRef<any>(null);
   const judgedRef = useRef<NoteEvent[]>([]);
@@ -66,6 +85,25 @@ export function Practice() {
   const comboRef = useRef(0);
   const wrongTimerRef = useRef<number | null>(null);
   const scoreWrapRef = useRef<HTMLDivElement>(null);
+  const gentleTimerRef = useRef<number | null>(null);
+  const playbackRef = useRef<PlaybackController | null>(null);
+  const allEventsRef = useRef<NoteEvent[]>([]);
+
+  // Resolve the active chunk to a measure range (null = whole piece).
+  const chunks = useMemo(
+    () =>
+      meta
+        ? deriveChunks(
+            meta.measureCount ?? 0,
+            meta.measuresPerChunk ?? DEFAULT_MEASURES_PER_CHUNK,
+          )
+        : [],
+    [meta],
+  );
+  const chunkRange = useMemo(
+    () => resolveChunkRange(activeChunk, chunks),
+    [activeChunk, chunks],
+  );
 
   // ---- load piece ----------------------------------------------------------
   useEffect(() => {
@@ -140,9 +178,15 @@ export function Practice() {
     (osmd: any, events: NoteEvent[]) => {
       osmdRef.current = osmd;
       cursorStepRef.current = 0;
-      judgedRef.current = filterTimelineByStaff(events, tier.staff);
-      setProgress({ done: 0, total: judgedRef.current.length });
+      allEventsRef.current = events;
+      let judged = filterTimelineByStaff(events, tier.staff);
+      if (chunkRange) {
+        judged = sliceEventsByMeasures(judged, chunkRange.measureStart, chunkRange.measureEnd);
+      }
+      judgedRef.current = judged;
+      setProgress({ done: 0, total: judged.length });
       setPhase("ready");
+      if (judged.length > 0) moveCursorToStep(judged[0].step);
       updateCursorOverlay();
       if (import.meta.env.DEV) {
         (window as any).__pianoDebug = {
@@ -153,7 +197,7 @@ export function Practice() {
         };
       }
     },
-    [tier.staff, updateCursorOverlay],
+    [tier.staff, chunkRange, moveCursorToStep, updateCursorOverlay],
   );
 
   const onScoreError = useCallback((err: unknown) => {
@@ -191,8 +235,35 @@ export function Practice() {
   };
 
   // ---- start / stop --------------------------------------------------------
+  const stopHearing = () => {
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    setHearing(false);
+  };
+
+  const hearIt = () => {
+    if (hearing) {
+      stopHearing();
+      return;
+    }
+    const ctl = new PlaybackController({
+      events: judgedRef.current,
+      bpm: meta ? Math.round(meta.targetTempo * (tier.mode === "tempo" ? tier.tempoFactor : 1)) : 100,
+      staff: null,
+      onAdvance: (event) => moveCursorToStep(event.step),
+      onFinish: () => {
+        setHearing(false);
+        if (judgedRef.current.length > 0) moveCursorToStep(judgedRef.current[0].step);
+      },
+    });
+    playbackRef.current = ctl;
+    setHearing(true);
+    ctl.start();
+  };
+
   const startListening = async () => {
     if (!meta) return;
+    stopHearing(); // never listen and play back at the same time
     try {
       let detector: NoteDetector | null = null;
       const mic = await startMicSession((hop) => {
@@ -232,18 +303,36 @@ export function Practice() {
         };
       }
 
+      const clearGentleHint = () => {
+        if (gentleTimerRef.current) {
+          clearTimeout(gentleTimerRef.current);
+          gentleTimerRef.current = null;
+        }
+        setGentleHintMidis(null);
+      };
+
       const callbacks = {
         onAdvance: (event: NoteEvent) => {
           setProgress({ done: event.index, total: judgedRef.current.length });
+          // Gentle note helper: if he sits on this event too long, show where
+          // the key lives — no scoring penalty, reading comes first.
+          clearGentleHint();
+          if (tier.mode === "wait" && hesitationSeconds > 0) {
+            gentleTimerRef.current = window.setTimeout(() => {
+              setGentleHintMidis(event.notes.map((n) => n.midi));
+            }, hesitationSeconds * 1000);
+          }
         },
         onNoteCorrect: (event: NoteEvent, midi: number, clean: boolean) => {
           const note = event.notes.find((n) => n.midi === midi);
           if (note) colorNoteUnderCursor(osmdRef.current, note, COLORS.correct);
           setHintMidis(null);
+          clearGentleHint();
           awardNoteXp(clean);
         },
         onWrongNote: (event: NoteEvent, playedMidi: number) => {
           breakCombo();
+          clearGentleHint(); // the real hint flow takes over from here
           flashWrong(event, playedMidi);
         },
         onHint: (event: NoteEvent) => {
@@ -252,6 +341,7 @@ export function Practice() {
         },
         onEventComplete: (_event: NoteEvent, _clean: boolean) => {
           setHintMidis(null);
+          clearGentleHint();
         },
         onEventMissed: (event: NoteEvent) => {
           colorEventUnderCursor(osmdRef.current, event, COLORS.missed);
@@ -311,6 +401,14 @@ export function Practice() {
     metronomeRef.current = null;
     micRef.current?.stop();
     micRef.current = null;
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    setHearing(false);
+    if (gentleTimerRef.current) {
+      clearTimeout(gentleTimerRef.current);
+      gentleTimerRef.current = null;
+    }
+    setGentleHintMidis(null);
   };
 
   const logTime = () => {
@@ -326,18 +424,40 @@ export function Practice() {
     metronomeRef.current?.stop();
     const stars = starsForAccuracy(s.accuracy);
     const passed = s.accuracy >= PASS_ACCURACY;
-    const crowned = passed && tier.id === "t100";
+    const isFullRun = activeChunk === "full";
+    const isBaseChunk = typeof activeChunk === "number";
+    const crowned = isFullRun && passed && tier.id === "t100";
     setSummary(s);
     setStarsEarned(stars);
 
-    let bonus = XP.tierPassBase * stars;
-    if (crowned) bonus += XP.crownBonus;
+    let bonus = 0;
+    let best = false;
+    if (isFullRun) {
+      bonus += XP.tierPassBase * stars;
+      if (crowned) bonus += XP.crownBonus;
+      best = s.accuracy > prevBestAccuracy && s.accuracy > 0;
+      if (best) bonus += XP.improvementBonus;
+    } else if (passed) {
+      bonus += XP.chunkPassBase + 5 * stars;
+    }
+    setNewBest(best);
     sessionXpRef.current += bonus;
     setSessionXp(sessionXpRef.current);
 
-    if (meta && tierId) recordTierResult(meta.id, tierId, s.accuracy, stars, passed, crowned);
+    const xpBefore = useStore.getState().xp;
+    if (meta && tierId) {
+      if (isFullRun) {
+        recordTierResult(meta.id, tierId, s.accuracy, stars, passed, crowned);
+      } else if (isBaseChunk) {
+        recordChunkResult(meta.id, tierId, activeChunk, stars);
+      }
+      // Stitches earn XP but aren't persisted — they're a bridge, not a box.
+    }
     addXp(sessionXpRef.current);
     logTime();
+    if (buddyStage(xpBefore).name !== buddyStage(xpBefore + sessionXpRef.current).name) {
+      window.setTimeout(() => celebrate(equipped.celebration), 800);
+    }
 
     if (passed && micRef.current) {
       celebrate(equipped.celebration);
@@ -399,6 +519,9 @@ export function Practice() {
             {tier.mode === "tempo" && meta
               ? ` · ♩=${Math.round(meta.targetTempo * tier.tempoFactor)}`
               : ""}
+            {chunkRange
+              ? ` · Bars ${chunkRange.measureStart + 1}–${chunkRange.measureEnd + 1}`
+              : ""}
           </div>
         </div>
         <div className="hud">
@@ -422,6 +545,7 @@ export function Practice() {
             key={scoreNonce}
             xml={xml}
             judgedStaff={tier.staff}
+            chunkRange={chunkRange}
             onReady={onScoreReady}
             onError={onScoreError}
           />
@@ -443,12 +567,24 @@ export function Practice() {
           <MiniKeyboard highlight={hintMidis} />
         </div>
       )}
+      {!hintMidis && gentleHintMidis && (
+        <div className="hint-panel gentle">
+          <div className="hint-text">
+            Here's where {gentleHintMidis.length > 1 ? "they live" : "it lives"} 👇{" "}
+            ({gentleHintMidis.map((m) => midiNoteName(m)).join(" + ")})
+          </div>
+          <MiniKeyboard highlight={gentleHintMidis} />
+        </div>
+      )}
       {countIn !== null && <div className="count-in">{countIn}</div>}
 
       {phase === "ready" && (
         <div className="start-overlay">
           <button className="btn-big btn-start" onClick={startListening}>
             🎤 Start playing!
+          </button>
+          <button className="btn-big btn-secondary" onClick={hearIt}>
+            {hearing ? "⏹ Stop" : "🔊 Hear it first"}
           </button>
           <p className="start-tip">
             {tier.mode === "wait"
@@ -478,16 +614,40 @@ export function Practice() {
                     : "Good try — again? 💪"}
             </h2>
             <p>
-              {Math.round(summary.accuracy * 100)}% perfect · +{sessionXp} XP
+              {Math.round(summary.accuracy * 100)}% · +{sessionXp} XP
               {summary.missedEvents > 0 ? ` · ${summary.missedEvents} missed` : ""}
             </p>
-            {starsEarned > 0 && nextTier(tier.id) && (
+            {newBest && <p className="finish-best">🏅 New personal best! {buddyName} is dancing!</p>}
+            {(() => {
+              const { gap, stars } = nextStarGap(summary.accuracy);
+              if (gap !== null && gap <= 0.06 && stars < 3) {
+                return (
+                  <p className="finish-next">
+                    So close — just {Math.max(1, Math.ceil(gap * 100))}% from{" "}
+                    {"⭐".repeat(stars + 1)}! One more run?
+                  </p>
+                );
+              }
+              return null;
+            })()}
+            {starsEarned > 0 && activeChunk === "full" && nextTier(tier.id) && (
               <p className="finish-next">
                 Next up: {nextTier(tier.id)!.emoji} {nextTier(tier.id)!.label}
               </p>
             )}
             <div className="finish-buttons">
               <button className="btn-big" onClick={tryAgain}>🔁 Play again</button>
+              {typeof activeChunk === "number" && starsEarned > 0 && activeChunk + 1 < chunks.length && (
+                <button
+                  className="btn-big"
+                  onClick={() => {
+                    useStore.setState({ activeChunk: activeChunk + 1 });
+                    tryAgain();
+                  }}
+                >
+                  ▶ Next chunk
+                </button>
+              )}
               <button className="btn-big btn-secondary" onClick={exitToHome}>🏠 Home</button>
             </div>
           </div>

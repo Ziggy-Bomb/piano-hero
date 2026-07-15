@@ -3,18 +3,27 @@
 
 import { useEffect, useRef } from "react";
 import { extractTimeline, NoteEvent } from "./timeline";
-import { dimOtherStaff } from "./colorizer";
+import { dimOtherStaff, dimOutsideChunk } from "./colorizer";
 
 export interface ScoreViewProps {
   xml: string;
   /** null = judge both staves; 1 or 2 dims the other staff. */
   judgedStaff: number | null;
+  /** Gray out everything outside this measure range (chunk practice). */
+  chunkRange?: { measureStart: number; measureEnd: number } | null;
   zoom?: number;
   onReady: (osmd: any, events: NoteEvent[]) => void;
   onError: (err: unknown) => void;
 }
 
-export function ScoreView({ xml, judgedStaff, zoom = 0.85, onReady, onError }: ScoreViewProps) {
+export function ScoreView({
+  xml,
+  judgedStaff,
+  chunkRange = null,
+  zoom = 0.85,
+  onReady,
+  onError,
+}: ScoreViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
@@ -55,8 +64,11 @@ export function ScoreView({ xml, judgedStaff, zoom = 0.85, onReady, onError }: S
 
         const events = extractTimeline(osmd);
 
-        if (judgedStaff !== null) {
-          dimOtherStaff(events, judgedStaff);
+        if (judgedStaff !== null || chunkRange) {
+          if (judgedStaff !== null) dimOtherStaff(events, judgedStaff);
+          if (chunkRange) {
+            dimOutsideChunk(events, chunkRange.measureStart, chunkRange.measureEnd);
+          }
           osmd.render();
         }
 
@@ -91,7 +103,7 @@ export function ScoreView({ xml, judgedStaff, zoom = 0.85, onReady, onError }: S
       }
       container.innerHTML = "";
     };
-  }, [xml, judgedStaff, zoom]);
+  }, [xml, judgedStaff, zoom, chunkRange?.measureStart, chunkRange?.measureEnd]);
 
   return <div className="score-container" ref={containerRef} />;
 }

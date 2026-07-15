@@ -4,7 +4,9 @@ export const XP = {
   cleanNote: 5,
   helpedNote: 2, // after a wrong note or with a hint showing
   tierPassBase: 50, // x stars
+  chunkPassBase: 15, // + 5 x stars
   crownBonus: 300,
+  improvementBonus: 20, // beating your personal best
   comboStep: 8, // combo needed per extra multiplier
   maxMultiplier: 4,
 };

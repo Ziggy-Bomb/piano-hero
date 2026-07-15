@@ -8,7 +8,8 @@
       "targetTempo": 108,
       "beatsPerBar": 4,
       "level": 1,
-      "assigned": true
+      "assigned": true,
+      "measureCount": 8
     },
     {
       "id": "twinkle-twinkle",
@@ -18,7 +19,8 @@
       "targetTempo": 100,
       "beatsPerBar": 4,
       "level": 1,
-      "assigned": true
+      "assigned": true,
+      "measureCount": 12
     }
   ]
 }

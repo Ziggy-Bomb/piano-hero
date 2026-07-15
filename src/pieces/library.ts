@@ -14,6 +14,10 @@ export interface PieceMeta {
   level: 1 | 2 | 3;
   assigned: boolean;
   source: "repo" | "import";
+  /** Bars per practice chunk (default 2). */
+  measuresPerChunk?: number;
+  /** Total measures — lets the home screen draw the chunk map without OSMD. */
+  measureCount?: number;
 }
 
 const IMPORTED_LIST_KEY = "importedPieces";
@@ -61,38 +65,60 @@ function textOf(doc: Document, selector: string): string {
   return doc.querySelector(selector)?.textContent?.trim() ?? "";
 }
 
-export async function importPieceFromFile(file: File): Promise<PieceMeta> {
-  const xml = await file.text();
+/** Metadata parsed out of a MusicXML document (no persistence). */
+export function parseXmlMeta(xml: string): {
+  title: string;
+  composer: string;
+  beatsPerBar: number;
+  targetTempo: number;
+} {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   if (doc.querySelector("parsererror")) {
-    throw new Error("That file doesn't look like valid MusicXML.");
+    throw new Error("That doesn't look like valid MusicXML.");
   }
-  const title =
-    textOf(doc, "work work-title") ||
-    textOf(doc, "movement-title") ||
-    file.name.replace(/\.(musicxml|xml|mxl)$/i, "");
-  const composer = textOf(doc, 'identification creator[type="composer"]') || "Unknown";
-  const beats = parseInt(textOf(doc, "time beats"), 10) || 4;
   const tempoAttr = doc.querySelector("sound[tempo]")?.getAttribute("tempo");
-  const targetTempo = tempoAttr ? Math.round(parseFloat(tempoAttr)) : 100;
+  return {
+    title: textOf(doc, "work work-title") || textOf(doc, "movement-title") || "",
+    composer: textOf(doc, 'identification creator[type="composer"]') || "Unknown",
+    beatsPerBar: parseInt(textOf(doc, "time beats"), 10) || 4,
+    targetTempo: tempoAttr ? Math.round(parseFloat(tempoAttr)) : 100,
+  };
+}
 
+/** Save a MusicXML string (however obtained) as an imported piece. */
+export async function importPieceFromXml(
+  xml: string,
+  overrides: Partial<PieceMeta> = {},
+): Promise<PieceMeta> {
+  const parsed = parseXmlMeta(xml);
   const existing: PieceMeta[] = (await get(IMPORTED_LIST_KEY)) ?? [];
+  const title = overrides.title || parsed.title || "Untitled piece";
   let id = slugify(title);
   while (existing.some((p) => p.id === id)) id = `${id}-2`;
 
   const meta: PieceMeta = {
-    id,
-    title,
-    composer,
-    targetTempo,
-    beatsPerBar: beats,
+    composer: parsed.composer,
+    targetTempo: parsed.targetTempo,
+    beatsPerBar: parsed.beatsPerBar,
     level: 1,
     assigned: true,
+    measureCount: (xml.match(/<measure[\s>]/g) ?? []).length,
+    ...overrides,
+    title,
+    id, // always the computed unique slug
     source: "import",
   };
   await set(xmlKey(id), xml);
   await set(IMPORTED_LIST_KEY, [...existing, meta]);
   return meta;
+}
+
+export async function importPieceFromFile(file: File): Promise<PieceMeta> {
+  const xml = await file.text();
+  return importPieceFromXml(xml, {
+    title:
+      parseXmlMeta(xml).title || file.name.replace(/\.(musicxml|xml|mxl)$/i, ""),
+  });
 }
 
 export async function updateImportedPiece(meta: PieceMeta): Promise<void> {

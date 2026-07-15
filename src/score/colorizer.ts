@@ -87,3 +87,20 @@ export function clearPersistentColors(allEvents: NoteEvent[]): void {
     for (const n of e.notes) setPersistentNoteColor(n.sourceNote, undefined);
   }
 }
+
+/**
+ * Gray out every note outside the active chunk's measure range (both staves).
+ * Call before render(), like dimOtherStaff.
+ */
+export function dimOutsideChunk(
+  allEvents: NoteEvent[],
+  measureStart: number,
+  measureEnd: number,
+): void {
+  for (const e of allEvents) {
+    const outside = e.measureIndex < measureStart || e.measureIndex > measureEnd;
+    if (outside) {
+      for (const n of e.notes) setPersistentNoteColor(n.sourceNote, "#c9c9d6");
+    }
+  }
+}

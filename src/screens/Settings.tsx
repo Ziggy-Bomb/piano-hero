@@ -9,6 +9,8 @@ import {
   removeImportedPiece,
   updateImportedPiece,
 } from "../pieces/library";
+import { getApiKey, setApiKey, clearApiKey } from "../import/apiKey";
+import { testApiKey } from "../import/transcribe";
 
 export function Settings() {
   const setScreen = useStore((s) => s.setScreen);
@@ -19,9 +21,16 @@ export function Settings() {
   const importProgress = useStore((s) => s.importProgress);
   const sessions = useStore((s) => s.sessions);
   const { pieces, reload } = usePieces();
+  const hesitationSeconds = useStore((s) => s.hesitationSeconds);
+  const setHesitationSeconds = useStore((s) => s.setHesitationSeconds);
+  const buddyName = useStore((s) => s.buddyName);
+  const setBuddyName = useStore((s) => s.setBuddyName);
   const fileRef = useRef<HTMLInputElement>(null);
   const progressFileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [keyInput, setKeyInput] = useState("");
+  const [hasKey, setHasKey] = useState(!!getApiKey());
+  const [testing, setTesting] = useState(false);
 
   const flash = (m: string) => {
     setMsg(m);
@@ -104,6 +113,9 @@ export function Settings() {
             </div>
           ))}
         </div>
+        <button className="btn-big btn-start" onClick={() => setScreen("import")}>
+          📷 New piece from a photo
+        </button>
         <input
           ref={fileRef}
           type="file"
@@ -111,12 +123,70 @@ export function Settings() {
           hidden
           onChange={(e) => onImportPiece(e.target.files?.[0])}
         />
-        <button className="btn-big" onClick={() => fileRef.current?.click()}>
-          ➕ Add a piece (MusicXML file)
+        <button className="btn-big btn-secondary" onClick={() => fileRef.current?.click()}>
+          ➕ Add a MusicXML file
         </button>
+      </section>
+
+      <section>
+        <h2 className="section-title">🤖 Photo import (Claude API)</h2>
+        {hasKey ? (
+          <div className="settings-row">
+            <span>API key saved ✓</span>
+            <div className="sp-actions">
+              <button
+                className="btn-small"
+                disabled={testing}
+                onClick={async () => {
+                  setTesting(true);
+                  try {
+                    flash((await testApiKey()) ? "✅ Key works" : "❌ Key rejected");
+                  } finally {
+                    setTesting(false);
+                  }
+                }}
+              >
+                {testing ? "Testing…" : "Test key"}
+              </button>
+              <button
+                className="btn-small danger"
+                onClick={() => {
+                  clearApiKey();
+                  setHasKey(false);
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="settings-row">
+            <input
+              type="password"
+              className="key-input"
+              placeholder="sk-ant-…"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+            />
+            <button
+              className="btn-small"
+              disabled={!keyInput.trim()}
+              onClick={() => {
+                setApiKey(keyInput);
+                setKeyInput("");
+                setHasKey(true);
+                flash("✅ Key saved on this device");
+              }}
+            >
+              Save
+            </button>
+          </div>
+        )}
         <p className="muted">
-          Got sheet music on paper? Ask Claude to turn a photo of it into a MusicXML
-          file, then add it here.
+          Create a key at console.anthropic.com. It's stored only on this device and
+          sent directly to Anthropic — but anyone with this device can read it, so use
+          a dedicated key with a monthly spend limit (Console → Limits). Each photo
+          import costs roughly 25–60¢ of API credit.
         </p>
       </section>
 
@@ -146,6 +216,36 @@ export function Settings() {
         <button className="btn-big btn-secondary" onClick={() => setScreen("calibrate")}>
           🎹 Calibrate for your piano {calibration ? "(done ✓)" : "(not done yet)"}
         </button>
+        <div className="settings-row">
+          <span>Note helper appears after</span>
+          <div className="segmented">
+            {[0, 2, 4, 6, 8].map((s) => (
+              <button
+                key={s}
+                className={hesitationSeconds === s ? "on" : ""}
+                onClick={() => setHesitationSeconds(s)}
+              >
+                {s === 0 ? "Off" : `${s}s`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="muted">
+          When he's stuck on a note for this long, a little keyboard shows where it
+          lives — no penalty, reading always gets the first try.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="section-title">🐣 Buddy</h2>
+        <div className="settings-row">
+          <span>Buddy's name</span>
+          <input
+            className="key-input"
+            value={buddyName}
+            onChange={(e) => setBuddyName(e.target.value)}
+          />
+        </div>
       </section>
 
       <section>

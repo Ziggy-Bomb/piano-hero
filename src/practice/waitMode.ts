@@ -4,6 +4,7 @@
 import { DetectorFrame } from "../audio/noteDetector";
 import { NoteVerifier } from "../audio/noteVerifier";
 import { NoteEvent } from "../score/timeline";
+import { creditFor } from "./scoring";
 import { PracticeCallbacks, PracticeSummary } from "./types";
 
 const HINT_AFTER_MISSES = 2;
@@ -23,6 +24,7 @@ export class WaitModeController {
   private cleanEvents = 0;
   private hintsUsed = 0;
   private wrongNotes = 0;
+  private creditSum = 0;
 
   constructor(
     events: NoteEvent[],
@@ -42,6 +44,7 @@ export class WaitModeController {
     this.cleanEvents = 0;
     this.hintsUsed = 0;
     this.wrongNotes = 0;
+    this.creditSum = 0;
     this.advance();
   }
 
@@ -79,6 +82,9 @@ export class WaitModeController {
     if (result.complete) {
       const clean = !this.wrongOnEvent && !this.hintShown;
       if (clean) this.cleanEvents++;
+      this.creditSum += creditFor(
+        this.hintShown ? "withHint" : this.wrongOnEvent ? "afterWrong" : "clean",
+      );
       this.cb.onEventComplete(event, clean);
       this.advance();
     }
@@ -110,7 +116,8 @@ export class WaitModeController {
       hintsUsed: this.hintsUsed,
       wrongNotes: this.wrongNotes,
       missedEvents: 0,
-      accuracy: total > 0 ? this.cleanEvents / total : 0,
+      creditSum: this.creditSum,
+      accuracy: total > 0 ? this.creditSum / total : 0,
     };
   }
 }

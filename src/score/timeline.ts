@@ -22,6 +22,8 @@ export interface NoteEvent {
   step: number;
   /** Musical time in quarter-note beats from the start. */
   beats: number;
+  /** 0-based measure this event belongs to (from the OSMD iterator). */
+  measureIndex: number;
   notes: TimelineNote[];
 }
 
@@ -55,8 +57,18 @@ export function extractTimeline(osmd: any): NoteEvent[] {
     }
 
     const beats = (iterator.currentTimeStamp?.RealValue ?? 0) * 4;
+    let measureIndex = iterator.CurrentMeasureIndex ?? iterator.currentMeasureIndex;
+    if (measureIndex === undefined && iterator.CurrentMeasure?.MeasureNumber !== undefined) {
+      measureIndex = iterator.CurrentMeasure.MeasureNumber - 1;
+    }
     if (notes.length > 0) {
-      events.push({ index: events.length, step, beats, notes });
+      events.push({
+        index: events.length,
+        step,
+        beats,
+        measureIndex: Number.isFinite(measureIndex) ? measureIndex : 0,
+        notes,
+      });
     }
 
     iterator.moveToNext();

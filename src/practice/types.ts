@@ -8,7 +8,10 @@ export interface PracticeSummary {
   hintsUsed: number;
   wrongNotes: number;
   missedEvents: number;
-  accuracy: number; // cleanEvents / totalEvents
+  /** Sum of per-event partial credit (see practice/scoring.ts). */
+  creditSum: number;
+  /** creditSum / totalEvents — partial-credit accuracy, not a clean-rate. */
+  accuracy: number;
 }
 
 export interface PracticeCallbacks {

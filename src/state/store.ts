@@ -12,6 +12,8 @@ export interface TierProgress {
   bestAccuracy: number;
   attempts: number;
   passed: boolean;
+  /** Stars per base chunk index (chunk practice). Absent on pre-chunk data. */
+  chunkStars?: Record<number, 0 | 1 | 2 | 3>;
 }
 
 export interface PieceProgress {
@@ -26,7 +28,11 @@ export interface SessionLog {
   xp: number;
 }
 
-export type Screen = "home" | "practice" | "rewards" | "settings" | "calibrate";
+export type Screen = "home" | "practice" | "rewards" | "settings" | "calibrate" | "import";
+
+/** Which slice of the piece is being practised: a base-chunk index, a stitch
+ * of two chunk indices, or the whole piece. */
+export type ActiveChunk = number | { stitch: [number, number] } | "full";
 
 function today(): string {
   const d = new Date();
@@ -46,11 +52,15 @@ interface State {
   sessions: SessionLog[];
   calibration: Calibration | null;
   leniency: "generous" | "normal";
+  /** Seconds of hesitation before the gentle note helper appears (0 = off). */
+  hesitationSeconds: number;
+  buddyName: string;
 
   // session-only
   screen: Screen;
   activePieceId: string | null;
   activeTier: TierId | null;
+  activeChunk: ActiveChunk;
   combo: number;
   bestComboToday: number;
 
@@ -59,14 +69,17 @@ interface State {
 
   // actions
   setScreen(s: Screen): void;
-  openPractice(pieceId: string, tier: TierId): void;
+  openPractice(pieceId: string, tier: TierId, chunk?: ActiveChunk): void;
   addXp(n: number): void;
   setCombo(n: number): void;
   recordTierResult(pieceId: string, tier: TierId, accuracy: number, stars: 0 | 1 | 2 | 3, passed: boolean, crowned: boolean): void;
+  recordChunkResult(pieceId: string, tier: TierId, chunkIndex: number, stars: 0 | 1 | 2 | 3): void;
   logPracticeTime(minutes: number, xpEarned: number): void;
   setEquipped(kind: "cursor" | "celebration", id: string): void;
   setCalibration(c: Calibration): void;
   setLeniency(l: "generous" | "normal"): void;
+  setHesitationSeconds(s: number): void;
+  setBuddyName(name: string): void;
   exportProgress(): string;
   importProgress(json: string): boolean;
 }
@@ -79,6 +92,8 @@ const PERSIST_KEYS = [
   "sessions",
   "calibration",
   "leniency",
+  "hesitationSeconds",
+  "buddyName",
 ] as const;
 
 export const useStore = create<State>()(
@@ -91,18 +106,21 @@ export const useStore = create<State>()(
       sessions: [],
       calibration: null,
       leniency: "generous",
+      hesitationSeconds: 4,
+      buddyName: "Pip",
 
       screen: "home",
       activePieceId: null,
       activeTier: null,
+      activeChunk: "full",
       combo: 0,
       bestComboToday: 0,
 
       level: () => levelForXp(get().xp),
 
       setScreen: (s) => set({ screen: s }),
-      openPractice: (pieceId, tier) =>
-        set({ screen: "practice", activePieceId: pieceId, activeTier: tier }),
+      openPractice: (pieceId, tier, chunk = "full") =>
+        set({ screen: "practice", activePieceId: pieceId, activeTier: tier, activeChunk: chunk }),
 
       addXp: (n) => set((st) => ({ xp: st.xp + n })),
 
@@ -183,23 +201,60 @@ export const useStore = create<State>()(
           return { sessions, streak };
         }),
 
+      recordChunkResult: (pieceId, tier, chunkIndex, stars) =>
+        set((st) => {
+          const piece: PieceProgress = st.pieces[pieceId] ?? {
+            tiers: {},
+            crowned: false,
+            lastPlayed: today(),
+          };
+          const tp: TierProgress = piece.tiers[tier] ?? {
+            stars: 0,
+            bestAccuracy: 0,
+            attempts: 0,
+            passed: false,
+          };
+          const prev = tp.chunkStars?.[chunkIndex] ?? 0;
+          return {
+            pieces: {
+              ...st.pieces,
+              [pieceId]: {
+                ...piece,
+                tiers: {
+                  ...piece.tiers,
+                  [tier]: {
+                    ...tp,
+                    chunkStars: {
+                      ...tp.chunkStars,
+                      [chunkIndex]: Math.max(prev, stars) as 0 | 1 | 2 | 3,
+                    },
+                  },
+                },
+                lastPlayed: today(),
+              },
+            },
+          };
+        }),
+
       setEquipped: (kind, id) =>
         set((st) => ({ equipped: { ...st.equipped, [kind]: id } })),
 
       setCalibration: (c) => set({ calibration: c }),
       setLeniency: (l) => set({ leniency: l }),
+      setHesitationSeconds: (s) => set({ hesitationSeconds: s }),
+      setBuddyName: (name) => set({ buddyName: name || "Pip" }),
 
       exportProgress: () => {
         const st = get();
         const data: Record<string, unknown> = {};
         for (const k of PERSIST_KEYS) data[k] = st[k];
-        return JSON.stringify({ version: 1, ...data }, null, 2);
+        return JSON.stringify({ version: 2, ...data }, null, 2);
       },
 
       importProgress: (json) => {
         try {
           const data = JSON.parse(json);
-          if (data.version !== 1) return false;
+          if (data.version !== 1 && data.version !== 2) return false;
           const patch: Record<string, unknown> = {};
           for (const k of PERSIST_KEYS) {
             if (k in data) patch[k] = data[k];
@@ -212,7 +267,13 @@ export const useStore = create<State>()(
       },
     }),
     {
-      name: "piano.progress.v1",
+      name: "piano.progress.v1", // storage key is stable — renaming would orphan data
+      version: 2,
+      migrate: (persisted) => ({
+        hesitationSeconds: 4,
+        buddyName: "Pip",
+        ...(persisted as Partial<State>),
+      }),
       partialize: (st) =>
         Object.fromEntries(PERSIST_KEYS.map((k) => [k, st[k]])) as Partial<State>,
     },

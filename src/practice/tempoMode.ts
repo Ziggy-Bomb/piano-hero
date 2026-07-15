@@ -6,6 +6,7 @@ import { DetectorFrame } from "../audio/noteDetector";
 import { NoteVerifier } from "../audio/noteVerifier";
 import { Metronome } from "../audio/metronome";
 import { NoteEvent } from "../score/timeline";
+import { creditFor } from "./scoring";
 import { PracticeCallbacks, PracticeSummary } from "./types";
 
 interface EventState {
@@ -37,6 +38,7 @@ export class TempoModeController {
   private cleanEvents = 0;
   private wrongNotes = 0;
   private missedEvents = 0;
+  private creditSum = 0;
 
   constructor(opts: {
     events: NoteEvent[];
@@ -57,8 +59,11 @@ export class TempoModeController {
 
     const spb = opts.metronome.secondsPerBeat;
     const events = opts.events;
+    // Chunk-relative: the count-in leads straight into the first event even
+    // when the slice starts mid-piece (no-op for full runs, beats[0] === 0).
+    const beatsOffset = events.length > 0 ? events[0].beats : 0;
     this.states = events.map((event, i) => {
-      const nominal = (this.countInBeats + event.beats) * spb;
+      const nominal = (this.countInBeats + event.beats - beatsOffset) * spb;
       let halfWindow = this.windowFrac * spb;
       // Never let adjacent windows overlap (fast passages).
       if (i > 0) {
@@ -89,6 +94,7 @@ export class TempoModeController {
     this.cleanEvents = 0;
     this.wrongNotes = 0;
     this.missedEvents = 0;
+    this.creditSum = 0;
     this.startTime = this.now() + 0.15; // matches metronome startDelay
     this.metronome.start(0.15);
     if (this.states.length > 0) {
@@ -187,6 +193,7 @@ export class TempoModeController {
       s.complete = true;
       const clean = !s.hadWrong;
       if (clean) this.cleanEvents++;
+      this.creditSum += creditFor(clean ? "clean" : "afterWrong");
       this.cb.onEventComplete(s.event, clean);
     }
   }
@@ -201,7 +208,8 @@ export class TempoModeController {
       hintsUsed: 0,
       wrongNotes: this.wrongNotes,
       missedEvents: this.missedEvents,
-      accuracy: total > 0 ? this.cleanEvents / total : 0,
+      creditSum: this.creditSum,
+      accuracy: total > 0 ? this.creditSum / total : 0,
     };
     this.cb.onFinish(summary);
   }

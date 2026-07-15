@@ -40,11 +40,7 @@ export function nextTier(id: TierId): Tier | null {
   return i >= 0 && i < TIERS.length - 1 ? TIERS[i + 1] : null;
 }
 
-export const PASS_ACCURACY = 0.8;
+// Pass = 1 star: one consistent bar for the kid to understand.
+export const PASS_ACCURACY = 0.7;
 
-export function starsForAccuracy(accuracy: number): 0 | 1 | 2 | 3 {
-  if (accuracy >= 0.97) return 3;
-  if (accuracy >= 0.9) return 2;
-  if (accuracy >= PASS_ACCURACY) return 1;
-  return 0;
-}
+export { starsForAccuracy } from "./scoring";

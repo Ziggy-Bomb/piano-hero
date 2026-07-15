@@ -42,13 +42,26 @@ it will live during practice.
 
 Pieces are MusicXML files.
 
-1. **From a photo of sheet music:** ask Claude to transcribe the photo into
-   MusicXML, then either add it in-app (*Grown-ups → Add a piece*) or drop the
-   file into `public/pieces/` and add an entry to `public/pieces/manifest.json`.
-2. **Found online:** MuseScore community and public-domain archives offer
-   MusicXML downloads for lots of standard repertoire.
+1. **From a photo (in-app, recommended):** *Grown-ups → New piece from a
+   photo*. Photograph the pages; Claude (via your own API key, entered once in
+   Grown-ups) transcribes them to MusicXML; you review by eye and by ear
+   (playback preview) before saving. Costs roughly 25–60¢ of API credit per
+   attempt — use a spend-capped key.
+2. **From a file:** *Grown-ups → Add a MusicXML file* (MuseScore community and
+   public-domain archives have lots of repertoire), or drop it into
+   `public/pieces/` + `manifest.json` and push.
 
 In-app imports live in the browser's IndexedDB (no redeploy needed).
+
+## How practice is structured
+
+Each tier splits into 2-bar **chunks** → passing adjacent chunks unlocks
+**stitches** → passing all chunks unlocks the **whole-piece run** (which is
+what marks the tier passed). Scoring gives partial credit (a recovered wrong
+note costs 0.4, a hinted note 0.7) with stars at 70/85/95% — effort is always
+rewarded. If he's stuck reading a note for a few seconds, a gentle keyboard
+shows where it lives (configurable in Grown-ups, no score penalty). **Pip**
+the buddy on the home screen grows with XP and gets lonely after two days off.
 
 ## Demo without a piano
 

@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useStore } from "../state/store";
 import { usePieces } from "../ui/usePieces";
 import { TIERS, TierId } from "../practice/tiers";
 import { levelForXp, xpForLevel } from "../game/config";
 import { PieceMeta } from "../pieces/library";
+import { deriveChunks, DEFAULT_MEASURES_PER_CHUNK } from "../practice/chunks";
+import { ChunkMap } from "../ui/ChunkMap";
+import { Buddy } from "../ui/Buddy";
 
 function LevelBar() {
   const xp = useStore((s) => s.xp);
@@ -45,8 +49,18 @@ function PieceCard({ piece }: { piece: PieceMeta }) {
     }
     nextTierId = t.id;
   }
+  const [selectedTier, setSelectedTier] = useState<TierId | null>(null);
+  const tierId = selectedTier ?? nextTierId;
   const crowned = progress?.crowned ?? false;
   const totalStars = TIERS.reduce((sum, t) => sum + (progress?.tiers[t.id]?.stars ?? 0), 0);
+  const chunks = deriveChunks(
+    piece.measureCount ?? 0,
+    piece.measuresPerChunk ?? DEFAULT_MEASURES_PER_CHUNK,
+  );
+  const tp = progress?.tiers[tierId];
+  // Next thing to play: first unpassed chunk, else the full run.
+  const nextChunk =
+    chunks.find((c) => !(tp?.passed || (tp?.chunkStars?.[c.index] ?? 0) >= 1))?.index ?? "full";
 
   return (
     <div className={`piece-card ${crowned ? "crowned" : ""}`}>
@@ -63,24 +77,29 @@ function PieceCard({ piece }: { piece: PieceMeta }) {
       </div>
       <div className="tier-ladder">
         {TIERS.map((t) => {
-          const tp = progress?.tiers[t.id];
+          const p = progress?.tiers[t.id];
           const isNext = t.id === nextTierId && !crowned;
           return (
             <button
               key={t.id}
-              className={`tier-chip ${tp?.passed ? "passed" : ""} ${isNext ? "next" : ""}`}
-              onClick={() => openPractice(piece.id, t.id)}
+              className={`tier-chip ${p?.passed ? "passed" : ""} ${isNext ? "next" : ""} ${t.id === tierId ? "selected" : ""}`}
+              onClick={() => setSelectedTier(t.id)}
             >
               <span className="tier-emoji">{t.emoji}</span>
               <span className="tier-label">{t.shortLabel}</span>
               <span className="tier-stars">
-                {tp && tp.stars > 0 ? "⭐".repeat(tp.stars) : ""}
+                {p && p.stars > 0 ? "⭐".repeat(p.stars) : ""}
               </span>
             </button>
           );
         })}
       </div>
-      <button className="btn-play" onClick={() => openPractice(piece.id, nextTierId)}>
+      <ChunkMap
+        chunks={chunks}
+        tierProgress={tp}
+        onPlay={(chunk) => openPractice(piece.id, tierId, chunk)}
+      />
+      <button className="btn-play" onClick={() => openPractice(piece.id, tierId, nextChunk)}>
         ▶ Play
       </button>
     </div>
@@ -100,6 +119,7 @@ export function Home() {
         <StreakFlame />
       </header>
       <LevelBar />
+      <Buddy />
 
       {!calibration && (
         <button className="calibration-nudge" onClick={() => setScreen("calibrate")}>
