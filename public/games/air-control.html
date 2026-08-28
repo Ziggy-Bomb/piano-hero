@@ -176,11 +176,12 @@ const TREES=[[.06,.12,1],[.115,.09,.8],[.17,.15,1.1],[.05,.52,.9],[.10,.60,1.15]
 const BUSH=[[.21,.10],[.08,.68],[.86,.06],[.35,.955],[.94,.88],[.13,.19],[.60,.04]];
 
 function layout(){
-  S=clamp(Math.min(W,H)/420,0.75,2.4);
+  // /470 rather than /420 zooms the world out ~11% for more airspace
+  S=clamp(Math.min(W,H)/470,0.68,2.2);
   const m=Math.min(W,H);
-  Object.assign(runways.main,{kind:'jet',x:W*0.30,y:H*0.36,a:0,L:W*0.55,w:34*S,color:'#e0483d'});
-  Object.assign(runways.short,{kind:'prop',x:W*0.415,y:H*0.85,a:-0.88,L:m*0.56,w:26*S,color:'#f7f3e4'});
-  Object.assign(runways.pad,{kind:'heli',x:W*0.795,y:H*0.705,r:26*S,color:'#3d8fd6'});
+  Object.assign(runways.main,{kind:'jet',x:W*0.285,y:H*0.36,a:0,L:W*0.51,w:34*S,color:'#e0483d'});
+  Object.assign(runways.short,{kind:'prop',x:W*0.405,y:H*0.84,a:-0.88,L:m*0.52,w:26*S,color:'#f7f3e4'});
+  Object.assign(runways.pad,{kind:'heli',x:W*0.79,y:H*0.70,r:26*S,color:'#3d8fd6'});
 }
 function resize(){
   W=innerWidth;H=innerHeight;dpr=Math.min(window.devicePixelRatio||1,3);
@@ -411,7 +412,7 @@ function queueMonster(){
     A.ufoSnd();
   }else{
     const x=rand(W*0.12,W*0.88);
-    monWarns.push({type,t:1.6,x,y:H-26*S,spawn:{x}});
+    monWarns.push({type,t:2.3,x,y:H-26*S,spawn:{x}});
     A.rumble();
   }
 }
@@ -422,7 +423,7 @@ function spawnMonster(w){
   }else if(w.type==='ufo'){
     monsters.push({type:'ufo',x:w.spawn.x,y:-60*S,ty:rand(H*0.2,H*0.42),phase:'in',t:0,beamT:0,victim:null});
   }else{
-    monsters.push({type:'rocket',x:w.spawn.x,y:H+50*S,vy:-H/1.7,t:0});
+    monsters.push({type:'rocket',x:w.spawn.x,y:H+50*S,vy:-H/3.4,t:0});
   }
 }
 function beamHalfAt(mo,y){return 14*S+(y-mo.y)*0.28;}
@@ -582,8 +583,18 @@ function drawRocketM(mo){
   ctx.beginPath();ctx.moveTo(s*0.42,s*0.4);ctx.lineTo(s*0.95,s*1.05);ctx.lineTo(s*0.42,s*0.88);ctx.closePath();ctx.fill();ctx.stroke();
   ctx.restore();
 }
+function rocketPathLine(x,fromY,alpha){
+  ctx.save();
+  ctx.strokeStyle='rgba(255,90,60,'+alpha+')';
+  ctx.lineWidth=3*S;ctx.lineCap='round';
+  ctx.setLineDash([9*S,11*S]);ctx.lineDashOffset=tSec*46*S;
+  ctx.beginPath();ctx.moveTo(x,fromY);ctx.lineTo(x,-10);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
 function drawMonsters(){
   for(const w of monWarns){
+    if(w.type==='rocket')rocketPathLine(w.x,H+10,0.30+0.22*Math.sin(tSec*10));
     if(Math.sin(tSec*14)>0){
       ctx.font='900 '+(24*S)+'px system-ui,sans-serif';
       ctx.textAlign='center';ctx.textBaseline='middle';
@@ -596,7 +607,7 @@ function drawMonsters(){
   for(const mo of monsters){
     if(mo.type==='dragon')drawDragon(mo);
     else if(mo.type==='ufo')drawUfo(mo);
-    else drawRocketM(mo);
+    else{rocketPathLine(mo.x,mo.y-34*S,0.38);drawRocketM(mo);}
   }
 }
 
