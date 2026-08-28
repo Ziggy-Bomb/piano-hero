@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4cc3ff">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Flight Games</title>
+</head>
+<body>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:linear-gradient(#7ac9f7 0%,#d8f2ff 62%,#7ed957 62%,#5cb83f 100%);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#213040;
+    -webkit-tap-highlight-color:transparent}
+  .wrap{max-width:760px;margin:0 auto;padding:26px 18px 34px;display:flex;flex-direction:column;
+    align-items:center;gap:18px;min-height:100vh;justify-content:center}
+  .sun{position:fixed;top:-46px;right:-46px;width:150px;height:150px;border-radius:50%;
+    background:#ffdf5c;box-shadow:0 0 0 14px rgba(255,223,92,.35),0 0 60px rgba(255,223,92,.8);pointer-events:none}
+  .cloud{position:fixed;background:#fff;border-radius:50px;opacity:.9;pointer-events:none}
+  .cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+  .c1{width:110px;height:34px;top:60px;left:6%}
+  .c1::before{width:50px;height:50px;top:-24px;left:18px}
+  .c1::after{width:36px;height:36px;top:-14px;left:56px}
+  .c2{width:80px;height:26px;top:16px;left:34%}
+  .c2::before{width:36px;height:36px;top:-17px;left:14px}
+  .c2::after{width:26px;height:26px;top:-10px;left:42px}
+  header{text-align:center;position:relative;z-index:1}
+  .eyebrow{font-size:13px;font-weight:800;letter-spacing:.4em;color:#1f6fae}
+  h1{margin:4px 0 0;font-size:clamp(30px,7vw,46px);font-weight:900;letter-spacing:.03em;
+    color:#fff;text-shadow:0 3px 0 #2b81c2,0 6px 16px rgba(20,60,100,.35);text-wrap:balance}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;width:100%;position:relative;z-index:1}
+  a.card{display:block;border-radius:22px;padding:20px 20px 18px;text-decoration:none;color:#fff;
+    border:3px solid rgba(255,255,255,.75);box-shadow:0 8px 0 rgba(0,0,0,.14),0 14px 26px rgba(20,60,20,.25);
+    transition:transform .08s}
+  a.card:active{transform:translateY(4px);box-shadow:0 4px 0 rgba(0,0,0,.14)}
+  .card .art{font-size:56px;line-height:1;filter:drop-shadow(0 4px 3px rgba(0,0,0,.25))}
+  .card h2{margin:10px 0 4px;font-size:24px;font-weight:900;letter-spacing:.04em}
+  .card p{margin:0 0 14px;font-size:14.5px;font-weight:600;opacity:.95;line-height:1.4}
+  .card .play{display:inline-block;background:#ffd23f;color:#4a3608;font-weight:900;font-size:16px;
+    letter-spacing:.05em;padding:10px 26px;border-radius:26px;box-shadow:0 4px 0 #c99a12}
+  .ac{background:linear-gradient(160deg,#6fae3e,#4c8f2c)}
+  .lp{background:linear-gradient(160deg,#4cc3ff,#2b8fd4)}
+  footer{text-align:center;font-size:13px;font-weight:600;color:#2c5a1f;background:rgba(255,255,255,.55);
+    padding:10px 16px;border-radius:16px;line-height:1.5;position:relative;z-index:1;max-width:480px}
+  #offline{display:none;margin-top:6px;color:#1b7a2f;font-weight:800}
+  a.card:focus-visible,.play:focus-visible{outline:3px solid #ffd23f;outline-offset:3px}
+</style>
+<div class="sun"></div>
+<div class="cloud c1"></div>
+<div class="cloud c2"></div>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">READY FOR TAKE-OFF</div>
+    <h1>&#9992;&#65039; FLIGHT GAMES</h1>
+  </header>
+  <div class="cards">
+    <a class="card ac" href="./air-control.html">
+      <div class="art">&#9992;&#65039;&#128748;&#128640;</div>
+      <h2>AIR CONTROL</h2>
+      <p>For big pilots &mdash; draw flight paths, land every plane on its matching runway, and don't let them crash!</p>
+      <span class="play">PLAY &#9654;</span>
+    </a>
+    <a class="card lp" href="./little-pilot.html">
+      <div class="art">&#128745;&#127752;&#11088;</div>
+      <h2>LITTLE PILOT</h2>
+      <p>For little pilots &mdash; drag the friendly plane around the sky and land it for confetti. No losing, just flying.</p>
+      <span class="play">PLAY &#9654;</span>
+    </a>
+  </div>
+  <footer>
+    Add to Home screen in Chrome (&#8942; menu) to install it like a real game.
+    <div id="offline">&#10003; Saved on this phone &mdash; works with no internet</div>
+  </footer>
+</div>
+<script>
+if('serviceWorker'in navigator&&location.protocol.indexOf('http')===0){
+  navigator.serviceWorker.register('./sw.js').then(function(){
+    return navigator.serviceWorker.ready;
+  }).then(function(){
+    document.getElementById('offline').style.display='block';
+  }).catch(function(){});
+}
+</script>
+</body>
+</html>

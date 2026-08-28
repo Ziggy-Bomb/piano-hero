@@ -73,6 +73,24 @@ __fakePiano.play([60])                       // strike middle C
 __fakePiano.playSequence([[64],[64],[65]], 800)  // melody, 800ms apart
 ```
 
+## Bonus: Flight Games (offline, for the aeroplane)
+
+`public/games/` holds two self-contained games that need **no internet**:
+
+- `air-control.html` — an Air Control remake for big kids: drag flight paths
+  to land jets, planes and helicopters on their matching runways. Auto-saves
+  every couple of seconds, so a refresh or closed tab offers *Resume flight*.
+- `little-pilot.html` — a no-losing toddler version: drag a friendly plane
+  around the sky with a rainbow trail and land it for confetti. Everything on
+  screen (sun, clouds, flowers, birds) reacts to a tap.
+- `index.html` + `manifest.webmanifest` + `sw.js` — a launcher that installs
+  both games as one offline home-screen app (*Add to Home screen* in Chrome)
+  once the site is deployed. The service worker is scoped to `/games/` only,
+  so it never touches the piano app.
+
+Each game is a single HTML file with zero external requests — it can also be
+copied straight onto a phone and opened in Chrome from the Files app.
+
 ## Where things live
 
 - `src/audio/` — mic capture, FFT, onset detection, note verification (the pure
