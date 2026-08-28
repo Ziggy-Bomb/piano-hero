@@ -68,7 +68,9 @@
   <div class="modes">
     <button class="chip sel" id="mEasy">EASY &middot; &#10084;&#10084;&#10084;</button>
     <button class="chip" id="mClassic">CLASSIC &middot; &#10084;</button>
+    <button class="chip" id="mMonster">MONSTERS &middot; &#128009;</button>
   </div>
+  <div class="sub" id="modeNote">3 hearts &mdash; nice and friendly</div>
   <button class="big" id="contBtn" style="display:none;background:#8ce467;box-shadow:0 5px 0 #47a32c,0 10px 18px rgba(0,0,0,.35)">RESUME FLIGHT &#9654;</button>
   <button class="big" id="startBtn">TAKE OFF &#9992;</button>
   <div class="sub" id="menuBest">Best: 0</div>
@@ -156,7 +158,12 @@ const A={
   warn(){this.tone(960,{dur:.08,type:'square',v:.09});this.tone(960,{t:.13,dur:.08,type:'square',v:.07});},
   crash(){this.noise({dur:.55,f0:1400,f1:120,v:.5});this.tone(130,{dur:.5,type:'sawtooth',v:.35,slide:40});},
   over(){[392,330,262].forEach((f,i)=>this.tone(f,{t:i*.22,dur:.3,type:'triangle',v:.25}));},
-  fanfare(){[523,659,784,1046].forEach((f,i)=>this.tone(f,{t:i*.11,dur:.28,type:'triangle',v:.26}));}
+  fanfare(){[523,659,784,1046].forEach((f,i)=>this.tone(f,{t:i*.11,dur:.28,type:'triangle',v:.26}));},
+  roar(){this.tone(170,{dur:.7,type:'sawtooth',v:.3,slide:70});this.noise({dur:.6,f0:600,f1:150,v:.25});},
+  ufoSnd(){for(let i=0;i<3;i++){this.tone(620,{t:i*.16,dur:.08,type:'sine',v:.13});this.tone(830,{t:i*.16+.08,dur:.08,type:'sine',v:.13});}},
+  rumble(){this.noise({dur:1.1,f0:240,f1:70,v:.3});},
+  abduct(){this.tone(300,{dur:.55,type:'sine',v:.22,slide:1400});this.tone(1400,{t:.55,dur:.25,type:'sine',v:.15,slide:600});},
+  dragonFire(){this.noise({dur:.35,f0:1800,f1:350,v:.16});}
 };
 
 // ------------------------------------------------------------- canvas + layout
@@ -298,6 +305,7 @@ const TYPES={
   heli:{speed:31,size:28,color:'#3d8fd6',dark:'#174e83',r:12}
 };
 let planes=[],sparks=[],rings=[],floats=[],puffs=[];
+let monsters=[],monWarns=[],monsterT=8;
 let state='menu',paused=false,timeScale=1;
 let score=0,best=store.get('ac_best',0),hearts=3,gameMode=store.get('ac_mode','easy');
 let spawnT=0,shake=0,warnHold=0,lastBeep=0,tSec=0,overDelay=-1,oldBest=0,recordDone=false;
@@ -385,6 +393,213 @@ function doCrash(a,b){
   if(hearts<=0){overDelay=1.15;}
 }
 
+// ---------------------------------------------- MONSTERS mode
+// Every so often a creature crosses the airspace: dragons and rockets destroy
+// planes they touch; UFOs beam one up and fly off with it. An edge warning
+// flashes ~1.5s before each arrival.
+function queueMonster(){
+  const roll=Math.random();
+  const type=roll<0.4?'dragon':(roll<0.72?'ufo':'rocket');
+  if(type==='dragon'){
+    const fromLeft=Math.random()<0.5;
+    const y=rand(H*0.18,H*0.72);
+    monWarns.push({type,t:1.6,x:fromLeft?26*S:W-26*S,y,spawn:{fromLeft,y}});
+    A.roar();
+  }else if(type==='ufo'){
+    const x=rand(W*0.15,W*0.85);
+    monWarns.push({type,t:1.6,x,y:44*S,spawn:{x}});
+    A.ufoSnd();
+  }else{
+    const x=rand(W*0.12,W*0.88);
+    monWarns.push({type,t:1.6,x,y:H-26*S,spawn:{x}});
+    A.rumble();
+  }
+}
+function spawnMonster(w){
+  if(w.type==='dragon'){
+    monsters.push({type:'dragon',x:w.spawn.fromLeft?-80*S:W+80*S,y:w.spawn.y,
+      vx:(w.spawn.fromLeft?1:-1)*42*S,t:0,fireT:1.4,wob:Math.random()*TAU});
+  }else if(w.type==='ufo'){
+    monsters.push({type:'ufo',x:w.spawn.x,y:-60*S,ty:rand(H*0.2,H*0.42),phase:'in',t:0,beamT:0,victim:null});
+  }else{
+    monsters.push({type:'rocket',x:w.spawn.x,y:H+50*S,vy:-H/1.7,t:0});
+  }
+}
+function beamHalfAt(mo,y){return 14*S+(y-mo.y)*0.28;}
+function monsterKill(p,mo){
+  p.dead=true;
+  rings.push({x:p.x,y:p.y,t:0});
+  burst(p.x,p.y,14,['#ff9d2e','#ffd23f','#ff5a3c','#5c5c5c'],200*S);
+  shake=13;hearts--;
+  A.crash();vib(150);
+  floats.push({x:p.x,y:p.y-24*S,txt:mo.type==='dragon'?'ROAR!':'BOOM!',t:0,col:'#ffb0a6'});
+  if(hearts<=0)overDelay=1.15;
+}
+function updateMonsters(dt){
+  monsterT-=dt;
+  if(monsterT<=0&&monsters.length===0&&monWarns.length===0&&overDelay<0){
+    queueMonster();monsterT=rand(13,22);
+  }
+  for(const w of monWarns){w.t-=dt;if(w.t<=0)spawnMonster(w);}
+  monWarns=monWarns.filter(w=>w.t>0);
+  for(const mo of monsters){
+    mo.t+=dt;
+    if(mo.type==='dragon'){
+      mo.x+=mo.vx*dt;
+      mo.y+=Math.sin(mo.t*1.7+mo.wob)*26*S*dt;
+      mo.fireT-=dt;
+      if(mo.fireT<=0){
+        mo.fireT=2.1;A.dragonFire();
+        const dir=Math.sign(mo.vx);
+        for(let i=0;i<4;i++)sparks.push({x:mo.x+dir*46*S,y:mo.y-6*S,
+          vx:dir*rand(70,130)*S,vy:rand(0,26)*S,t:0,life:rand(.7,1.1),
+          col:['#ff9d2e','#ff5a3c','#ffd23f'][i%3],r:rand(4,7)*S});
+      }
+      if((mo.vx>0&&mo.x>W+90*S)||(mo.vx<0&&mo.x<-90*S))mo.dead=true;
+    }else if(mo.type==='ufo'){
+      if(mo.phase==='in'){
+        mo.y+=(mo.ty-mo.y)*Math.min(1,3*dt);
+        if(Math.abs(mo.y-mo.ty)<4*S){mo.phase='beam';mo.beamT=3.4;}
+      }else if(mo.phase==='beam'){
+        mo.beamT-=dt;
+        if(!mo.victim){
+          for(const p of planes){
+            if(p.landing||p.dead||p.abduct)continue;
+            if(p.y>mo.y+20*S&&Math.abs(p.x-mo.x)<beamHalfAt(mo,p.y)){
+              mo.victim=p;p.abduct=mo;p.path.length=0;p.cleared=null;
+              A.abduct();
+              floats.push({x:p.x,y:p.y-20*S,txt:'ABDUCTED!',t:0,col:'#b9ff8a'});
+              break;
+            }
+          }
+        }
+        if(mo.beamT<=0&&!mo.victim)mo.phase='out';
+      }else{
+        mo.y-=95*S*dt;mo.x+=42*S*dt;
+        if(mo.y<-80*S)mo.dead=true;
+      }
+      if(mo.victim){
+        const p=mo.victim;
+        if(p.dead){mo.victim=null;}
+        else{
+          p.x+=(mo.x-p.x)*Math.min(1,4*dt);
+          p.y+=(mo.y+20*S-p.y)*Math.min(1,1.9*dt);
+          p.hv+=6*dt;p.scale=Math.max(.22,p.scale-0.55*dt);
+          if(p.y<mo.y+26*S&&p.scale<=0.3){
+            p.dead=true;mo.victim=null;mo.phase='out';
+            puffs.push({x:mo.x,y:mo.y+16*S,t:0});
+          }
+        }
+      }
+    }else{
+      mo.y+=mo.vy*dt;
+      sparks.push({x:mo.x+rand(-4,4)*S,y:mo.y+30*S,vx:rand(-15,15)*S,
+        vy:rand(60,120)*S,t:0,life:.32,col:Math.random()<.5?'#ff9d2e':'#ffd23f',r:rand(3,6)*S});
+      if(mo.y<-70*S)mo.dead=true;
+    }
+  }
+  for(const mo of monsters){
+    if(mo.type==='ufo')continue;
+    const mr=(mo.type==='dragon'?30:16)*S;
+    for(const p of planes){
+      if(p.landing||p.dead||p.abduct)continue;
+      if(dist(p.x,p.y,mo.x,mo.y)<mr+TYPES[p.type].r*S)monsterKill(p,mo);
+    }
+  }
+  monsters=monsters.filter(m=>!m.dead);
+}
+function drawDragon(mo){
+  const s=30*S,dir=Math.sign(mo.vx);
+  ctx.save();ctx.translate(mo.x,mo.y);ctx.scale(dir,1);
+  const flap=Math.sin(mo.t*7);
+  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.strokeStyle='#3f8f2e';ctx.lineWidth=s*0.26;
+  ctx.beginPath();ctx.moveTo(-s*0.8,0);
+  ctx.quadraticCurveTo(-s*1.5,Math.sin(mo.t*5)*s*0.3,-s*2.0,-s*0.2);ctx.stroke();
+  ctx.fillStyle='#3f8f2e';
+  ctx.beginPath();ctx.moveTo(-s*2.0,-s*0.2);ctx.lineTo(-s*2.35,-s*0.5);ctx.lineTo(-s*1.8,-s*0.55);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#57a83c';ctx.strokeStyle='#2c6b1e';ctx.lineWidth=2*S;
+  ctx.beginPath();ctx.moveTo(-s*0.1,-s*0.2);
+  ctx.quadraticCurveTo(-s*0.4,-s*(1.1+flap*0.5),-s*1.2,-s*(0.9+flap*0.6));
+  ctx.quadraticCurveTo(-s*0.6,-s*0.3,-s*0.15,s*0.05);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle='#6bbf4a';
+  ctx.beginPath();ctx.ellipse(0,0,s*0.85,s*0.5,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#d6eda0';
+  ctx.beginPath();ctx.ellipse(s*0.05,s*0.16,s*0.58,s*0.26,0,0,TAU);ctx.fill();
+  ctx.fillStyle='#6bbf4a';
+  ctx.beginPath();ctx.ellipse(s*0.95,-s*0.25,s*0.42,s*0.34,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(s*1.3,-s*0.15,s*0.25,s*0.18,0,0,TAU);ctx.fill();ctx.stroke();
+  if(mo.fireT<0.4){ctx.fillStyle='#ff9d2e';
+    ctx.beginPath();ctx.arc(s*1.55,-s*0.1,s*0.13,0,TAU);ctx.fill();}
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(s*0.95,-s*0.38,s*0.13,0,TAU);ctx.fill();
+  ctx.fillStyle='#222';ctx.beginPath();ctx.arc(s*1.01,-s*0.38,s*0.06,0,TAU);ctx.fill();
+  ctx.fillStyle='#ffd23f';
+  ctx.beginPath();ctx.moveTo(s*0.75,-s*0.55);ctx.lineTo(s*0.7,-s*0.88);ctx.lineTo(s*0.92,-s*0.6);ctx.closePath();ctx.fill();
+  for(let i=0;i<3;i++){
+    const bx=-s*(0.1+i*0.3);
+    ctx.beginPath();ctx.moveTo(bx,-s*0.42);ctx.lineTo(bx-s*0.08,-s*0.72);ctx.lineTo(bx-s*0.26,-s*0.45);ctx.closePath();ctx.fill();
+  }
+  ctx.restore();
+}
+function drawUfo(mo){
+  const s=26*S;
+  ctx.save();ctx.translate(mo.x,mo.y+Math.sin(mo.t*3)*3*S);
+  if(mo.phase==='beam'){
+    const bh=H-mo.y;
+    const gr=ctx.createLinearGradient(0,0,0,bh);
+    gr.addColorStop(0,'rgba(190,255,170,.55)');gr.addColorStop(1,'rgba(190,255,170,.04)');
+    ctx.fillStyle=gr;
+    ctx.beginPath();ctx.moveTo(-14*S,s*0.3);ctx.lineTo(14*S,s*0.3);
+    ctx.lineTo(beamHalfAt(mo,mo.y+bh),bh);ctx.lineTo(-beamHalfAt(mo,mo.y+bh),bh);
+    ctx.closePath();ctx.fill();
+  }
+  ctx.fillStyle='#bfe9ff';ctx.strokeStyle='#3c4650';ctx.lineWidth=2*S;
+  ctx.beginPath();ctx.arc(0,-s*0.22,s*0.5,Math.PI,0);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#7ede63';
+  ctx.beginPath();ctx.arc(0,-s*0.34,s*0.2,0,TAU);ctx.fill();
+  ctx.fillStyle='#222';
+  ctx.beginPath();ctx.arc(-s*0.07,-s*0.38,s*0.045,0,TAU);ctx.arc(s*0.07,-s*0.38,s*0.045,0,TAU);ctx.fill();
+  ctx.fillStyle='#9aa7b5';ctx.strokeStyle='#3c4650';
+  ctx.beginPath();ctx.ellipse(0,-s*0.02,s*1.05,s*0.34,0,0,TAU);ctx.fill();ctx.stroke();
+  for(let i=-2;i<=2;i++){
+    ctx.fillStyle=(((tSec*4)|0)+i)%2===0?'#ffd23f':'#ff5a5f';
+    ctx.beginPath();ctx.arc(i*s*0.4,0,s*0.07,0,TAU);ctx.fill();
+  }
+  ctx.restore();
+}
+function drawRocketM(mo){
+  const s=18*S;
+  ctx.save();ctx.translate(mo.x,mo.y);
+  ctx.lineJoin='round';
+  ctx.fillStyle='#f2f4f2';ctx.strokeStyle='#3c4650';ctx.lineWidth=2*S;
+  ctx.beginPath();ctx.roundRect(-s*0.42,-s*1.1,s*0.84,s*2.0,s*0.42);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#e0483d';
+  ctx.beginPath();ctx.moveTo(-s*0.42,-s*0.9);ctx.quadraticCurveTo(0,-s*2.0,s*0.42,-s*0.9);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.fillStyle='#bfe9ff';
+  ctx.beginPath();ctx.arc(0,-s*0.35,s*0.24,0,TAU);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#e0483d';
+  ctx.beginPath();ctx.moveTo(-s*0.42,s*0.4);ctx.lineTo(-s*0.95,s*1.05);ctx.lineTo(-s*0.42,s*0.88);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(s*0.42,s*0.4);ctx.lineTo(s*0.95,s*1.05);ctx.lineTo(s*0.42,s*0.88);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+function drawMonsters(){
+  for(const w of monWarns){
+    if(Math.sin(tSec*14)>0){
+      ctx.font='900 '+(24*S)+'px system-ui,sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=4*S;ctx.strokeStyle='rgba(20,40,12,.8)';
+      ctx.strokeText('⚠',w.x,w.y);
+      ctx.fillStyle='#ffd23f';
+      ctx.fillText('⚠',w.x,w.y);
+    }
+  }
+  for(const mo of monsters){
+    if(mo.type==='dragon')drawDragon(mo);
+    else if(mo.type==='ufo')drawUfo(mo);
+    else drawRocketM(mo);
+  }
+}
+
 // ---------------------------------------------- crash-proofing: auto-save + resume
 // The game snapshots itself every 1.5s, so an accidental refresh, closed tab
 // or dead battery never loses a flight — the menu offers RESUME FLIGHT.
@@ -393,7 +608,7 @@ function saveSnap(){
   if(state!=='play'||hearts<=0)return;
   store.set('ac_snap',{v:1,when:Date.now(),score,hearts,mode:gameMode,
     landed:{...landed},W,H,
-    planes:planes.filter(p=>!p.dead&&!p.landing).map(p=>({
+    planes:planes.filter(p=>!p.dead&&!p.landing&&!p.abduct).map(p=>({
       type:p.type,x:Math.round(p.x),y:Math.round(p.y),h:+p.h.toFixed(3),
       path:p.path.map(q=>({x:Math.round(q.x),y:Math.round(q.y)})),
       cleared:p.cleared?(p.cleared===runways.main?'main':p.cleared===runways.short?'short':'pad'):null
@@ -429,9 +644,11 @@ function update(dt){
   if(spawnT<=0&&planes.length<capN&&overDelay<0){
     spawnPlane();spawnT=spawnInterval()*rand(0.75,1.25);
   }
+  if(gameMode==='monster')updateMonsters(dt);
   let anyWarn=false;
   for(const p of planes){
     p.prop+=dt*(p.type==='heli'?26:32);
+    if(p.abduct)continue;
     if(p.landing){updateLanding(p,dt);continue;}
     while(p.path.length&&dist(p.x,p.y,p.path[0].x,p.path[0].y)<12*S)p.path.shift();
     let target=null;
@@ -455,7 +672,7 @@ function update(dt){
   const crashes=[];
   for(let i=0;i<planes.length;i++)for(let j=i+1;j<planes.length;j++){
     const a=planes[i],b=planes[j];
-    if(a.landing||b.landing||a.dead||b.dead)continue;
+    if(a.landing||b.landing||a.dead||b.dead||a.abduct||b.abduct)continue;
     const rr=(TYPES[a.type].r+TYPES[b.type].r)*S;
     const d=dist(a.x,a.y,b.x,b.y);
     if(d<rr*1.02)crashes.push([a,b]);
@@ -646,6 +863,7 @@ function render(){
       ctx.fillText('✓',p.x,p.y-20*S);
     }
   }
+  if(gameMode==='monster')drawMonsters();
   // crash rings & sparks
   for(const r of rings){
     const k=r.t/0.7;
@@ -687,7 +905,7 @@ function render(){
     ctx.textAlign='right';
     ctx.fillStyle='#ffd23f';
     ctx.fillText('BEST '+best,W-12-sx,hb/2-sy+1);
-    const maxH=gameMode==='easy'?3:1;
+    const maxH=gameMode==='classic'?1:3;
     for(let i=0;i<maxH;i++)drawHeart(W/2+(i-(maxH-1)/2)*27*clamp(S,1,1.4)-sx,hb/2-sy,9.5*clamp(S,1,1.4),i<hearts);
     if(warnHold>0){
       const pulse=0.5+0.5*Math.sin(tSec*16);
@@ -712,7 +930,7 @@ cv.addEventListener('pointerdown',e=>{
   const x=e.clientX,y=e.clientY;
   let bestP=null,bd=54*S;
   for(const p of planes){
-    if(p.landing||p.dead)continue;
+    if(p.landing||p.dead||p.abduct)continue;
     const d=dist(p.x,p.y,x,y);
     if(d<bd){bd=d;bestP=p;}
   }
@@ -776,7 +994,8 @@ function grabWake(){
 }
 function start(){
   planes=[];sparks=[];rings=[];floats=[];puffs=[];grabs.clear();
-  score=0;hearts=gameMode==='easy'?3:1;
+  monsters=[];monWarns=[];monsterT=9;
+  score=0;hearts=gameMode==='classic'?1:3;
   spawnT=0.4;shake=0;warnHold=0;overDelay=-1;timeScale=1;
   oldBest=best;recordDone=false;
   landed={jet:0,prop:0,heli:0};
@@ -811,12 +1030,19 @@ $('restartBtn').addEventListener('click',()=>{A.ui();clearSnap();start();});
 $('quitBtn').addEventListener('click',()=>{A.ui();saveSnap();paused=false;show(pauseOv,false);state='menu';planes=[];playButtons(false);show(menu,true);updateMenu();});
 pauseBtn.addEventListener('click',()=>{A.ui();setPause(true);});
 function setMode(m){
+  if(m!=='easy'&&m!=='classic'&&m!=='monster')m='easy';
   gameMode=m;store.set('ac_mode',m);
   $('mEasy').classList.toggle('sel',m==='easy');
   $('mClassic').classList.toggle('sel',m==='classic');
+  $('mMonster').classList.toggle('sel',m==='monster');
+  $('modeNote').textContent=
+    m==='easy'?'3 hearts — nice and friendly':
+    m==='classic'?'1 heart — one crash and it\'s over!':
+    '3 hearts — dodge dragons, UFOs and rockets!';
 }
 $('mEasy').addEventListener('click',()=>{A.ui();setMode('easy');});
 $('mClassic').addEventListener('click',()=>{A.ui();setMode('classic');});
+$('mMonster').addEventListener('click',()=>{A.roar();setMode('monster');});
 function muteLabel(){
   const t=A.muted?'🔇 Sound off':'🔊 Sound on';
   $('muteBtn').textContent=t;$('muteBtn2').textContent=t;
@@ -865,7 +1091,13 @@ if('serviceWorker'in navigator&&location.protocol.indexOf('http')===0){
 // test hook
 window.__AC={
   planes:()=>planes,runways:()=>runways,state:()=>state,
-  score:()=>score,hearts:()=>hearts,start:()=>start(),resume:()=>resumeGame()
+  score:()=>score,hearts:()=>hearts,start:()=>start(),resume:()=>resumeGame(),
+  monsters:()=>monsters,
+  forceMonster:t=>{
+    if(t==='dragon')spawnMonster({type:'dragon',spawn:{fromLeft:true,y:H*0.4}});
+    else if(t==='ufo')spawnMonster({type:'ufo',spawn:{x:W*0.5}});
+    else spawnMonster({type:'rocket',spawn:{x:W*0.5}});
+  }
 };
 </script>
 </body>

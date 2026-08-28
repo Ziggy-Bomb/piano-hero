@@ -80,9 +80,14 @@ __fakePiano.playSequence([[64],[64],[65]], 800)  // melody, 800ms apart
 - `air-control.html` — an Air Control remake for big kids: drag flight paths
   to land jets, planes and helicopters on their matching runways. Auto-saves
   every couple of seconds, so a refresh or closed tab offers *Resume flight*.
+  Three modes: Easy (3 hearts), Classic (1 heart) and Monsters — dragons,
+  plane-abducting UFOs and rockets cross the airspace.
 - `little-pilot.html` — a no-losing toddler version: drag a friendly plane
   around the sky with a rainbow trail and land it for confetti. Everything on
-  screen (sun, clouds, flowers, birds) reacts to a tap.
+  screen (sun, clouds, flowers, birds) reacts to a tap. Each landing fills a
+  star; every third landing brings fireworks and unlocks the next flying
+  machine (helicopter → balloon → rocket → dragon) while the sky cycles
+  day → sunset → starry night. Progress is saved on the device.
 - `index.html` + `manifest.webmanifest` + `sw.js` — a launcher that installs
   both games as one offline home-screen app (*Add to Home screen* in Chrome)
   once the site is deployed. The service worker is scoped to `/games/` only,

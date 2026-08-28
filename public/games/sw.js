@@ -1,5 +1,5 @@
 // Offline cache for the /games/ folder only — the piano app above is untouched.
-const CACHE = 'flight-games-v1';
+const CACHE = 'flight-games-v2';
 const ASSETS = [
   './',
   './index.html',
