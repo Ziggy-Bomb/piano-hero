@@ -1,0 +1,18 @@
+{
+  "id": "oscars-buses",
+  "name": "Oscar's Buses",
+  "short_name": "Buses",
+  "description": "A gentle bus tower-defence game for little hands. Tap the bus stops, pick up every passenger. Works offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#79c7ff",
+  "theme_color": "#d7262b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

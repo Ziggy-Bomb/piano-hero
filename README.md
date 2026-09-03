@@ -106,6 +106,46 @@ rainbows, flowers or balloons. 16 levels (~1 hour), new buses and sticker
 celebrations as it goes, a grand parade finale, no way to lose, progress
 saved on the device.
 
+## Bonus: Oscar's Buses (offline tower defence for a nearly-3-year-old)
+
+`public/buses/` is a completely separate app from the flight games: its own
+home-screen icon, manifest, service worker (scoped to `/buses/` only) and
+saved progress. Single HTML file, zero downloads, nothing but taps.
+
+- **How it plays.** Passengers walk along the footpath. Tap a glowing bus
+  stop to park a bus; it picks up everyone who walks past ("ding ding!").
+  Each pickup earns a ticket; tickets buy more buses and upgrades — tap a bus
+  showing a bouncing arrow to make it a double decker, then a super bus.
+  Tapping a passenger makes them stop and wave for a moment. Nothing can be
+  lost: a trip only ends when the target number of passengers has been picked
+  up, and the stars (1–3) just reflect how many walked past.
+- **Twelve trips, about an hour.** Home Street → Park → School → Shops →
+  Farm → Seaside → Rainy Town → Zoo → Match Day → Night Bus → Big City → Bus
+  Depot Party. Each trip is longer and busier than the last (running
+  children, families, dogs, bursts of football fans, rain, night driving),
+  a new bus colour unlocks most trips, and from the Zoo onwards matching a
+  passenger's shirt to the bus colour earns double tickets. The Depot party
+  ends with a parade and a trophy; every trip stays replayable from the map.
+- **Little-fingers-proof.** Fullscreen, landscape-locked (held upright it
+  simply draws rotated), no zoom, scroll or pull-to-refresh, long-press
+  menus blocked, the back gesture is trapped (the game re-pushes history on
+  every tap), the screen stays awake, and the trip autosaves every 2 s — if
+  the app is closed anyway, reopening it resumes mid-trip. There is no
+  reset or quit button on screen: the grown-ups panel needs a 1.6 s hold on
+  the cog and then three numbers tapped in order (sound, voice, name, jump
+  to any trip, reset progress).
+- **Install on the Pixel.** Open `https://<pages-url>/buses/` in Chrome once
+  while online, then ⋮ → *Add to Home screen* / *Install app*. The icon
+  launches it fullscreen and it works with no internet from then on. The
+  voice lines ("Well done, Oscar!") use the phone's built-in text-to-speech
+  and can be switched off in the grown-ups panel; the child's name is
+  editable there too.
+- **Tuning.** `LEVELS` near the top of `index.html` holds each trip's route,
+  number of stops, target, costs and passenger mix; `window.__BUS` exposes
+  the game to a headless play-through (that is how the difficulty curve was
+  calibrated: a careful player gets three stars everywhere, a random tapper
+  still finishes every trip).
+
 ## Where things live
 
 - `src/audio/` — mic capture, FFT, onset detection, note verification (the pure
