@@ -96,6 +96,16 @@ __fakePiano.playSequence([[64],[64],[65]], 800)  // melody, 800ms apart
 Each game is a single HTML file with zero external requests — it can also be
 copied straight onto a phone and opened in Chrome from the Files app.
 
+`public/bus-patrol/` is a third, fully separate offline game with its own
+installable app (own manifest, service worker scoped to `/bus-patrol/`, own
+icon): **Oscar's Bus Patrol**, a gentle tower defence for a 3-year-old.
+Cheeky pigeons, clouds, mud splats, snails and a fox toddle toward the bus
+depot; tapping bus stops summons colourful UK buses (red single and double
+deckers first) that beep musical notes until each visitor turns into
+rainbows, flowers or balloons. 16 levels (~1 hour), new buses and sticker
+celebrations as it goes, a grand parade finale, no way to lose, progress
+saved on the device.
+
 ## Where things live
 
 - `src/audio/` — mic capture, FFT, onset detection, note verification (the pure

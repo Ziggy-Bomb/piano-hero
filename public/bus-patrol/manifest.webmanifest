@@ -1,0 +1,16 @@
+{
+  "name": "Oscar's Bus Patrol",
+  "short_name": "Bus Patrol",
+  "description": "A gentle bus-themed tower defence for very small conductors. No losing, lots of beeping.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#8bd66a",
+  "theme_color": "#e03a2f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
