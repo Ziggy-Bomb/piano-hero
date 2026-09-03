@@ -1,5 +1,5 @@
 // Offline cache for the /buses/ folder only — the piano app and the flight games are untouched.
-const CACHE = 'oscar-buses-v1';
+const CACHE = 'oscar-buses-v2';
 const ASSETS = [
   './',
   './index.html',
