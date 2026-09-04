@@ -110,6 +110,37 @@ rainbows, flowers or balloons. 16 levels (~1 hour), new buses and sticker
 celebrations as it goes, a grand parade finale, no way to lose, progress
 saved on the device.
 
+## Bonus: Oscar's Buses (offline tower defence for a nearly-3-year-old)
+
+`public/buses/` is another fully separate offline game with its own installable app
+(manifest, icon and a service worker scoped to `/buses/`), aimed at a not-quite-3-year-old
+who loves UK buses. It lives at `/buses/` on the Pages site.
+
+**How it plays.** People walk along a footpath while buses drive round the road beside it.
+Tap a person and they put a hand out: the next bus with room stops for them and they hop on
+("ding ding!"). Tap a bus to stop it anywhere. Full buses drive to the end of the road, where
+everybody hops off at the destination and cheers. Cows, sheep, ducks, cones, cats and footballs
+wander onto the road and hold the buses up until they are tapped away. Twelve trips (home street,
+park, school, shops, farm, seaside, rainy town, zoo, match day, night bus, big city, depot party),
+each longer and busier than the last, with new bus colours along the way (red single and double
+deckers, school bus, open-top, night bus, rainbow...) and colour-match bonuses later on. Roughly
+45 minutes to the finale, then every trip stays replayable from the map.
+
+**No numbers anywhere.** Progress is a little bus driving along the top bar towards the
+destination picture, and three stars light up as more people arrive by bus. Nothing can be lost:
+a trip always ends once everyone has arrived, by bus or on foot, and the stars only reflect how
+many rode the bus.
+
+**Little-fingers-proof.** Fullscreen with landscape lock (draws rotated when held upright),
+no zoom/scroll/pull-to-refresh/long-press, the back gesture is trapped, wake lock keeps the
+screen on, autosave every 2 s with resume on relaunch, and no reset or quit control on screen.
+The grown-ups panel (sound, voice, name, jump to a trip, reset) needs a 1.6 s hold on the cog
+plus three numbers tapped in order. An installed app reloads itself once when a newer version
+is deployed.
+
+**Tuning.** `window.__BUS` exposes the game to a headless play-through: a no-tap run scores
+1 star, random tapping about 2, deliberate tapping 3.
+
 ## Where things live
 
 - `src/audio/` — mic capture, FFT, onset detection, note verification (the pure
