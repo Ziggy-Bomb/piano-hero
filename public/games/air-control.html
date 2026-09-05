@@ -994,10 +994,9 @@ function show(el,on){el.classList.toggle('show',on);}
 function playButtons(on){ffBtn.style.display=pauseBtn.style.display=on?'flex':'none';}
 function goFullscreen(){
   const d=document.documentElement;
-  if(d.requestFullscreen)d.requestFullscreen().then(()=>{
-    if(screen.orientation&&screen.orientation.lock)
-      screen.orientation.lock('landscape').catch(()=>{});
-  }).catch(()=>{});
+  const lock=()=>{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{});};
+  if(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches){lock();return;}
+  if(d.requestFullscreen)d.requestFullscreen().then(lock).catch(()=>{});
 }
 let wakeLock=null;
 function grabWake(){

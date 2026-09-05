@@ -1,6 +1,6 @@
 // Offline cache for /bus-patrol/ only — completely separate from the
 // flight games app at /games/ and from the piano app at the site root.
-const CACHE = 'bus-patrol-v1';
+const CACHE = 'bus-patrol-v2';
 const ASSETS = [
   './',
   './index.html',

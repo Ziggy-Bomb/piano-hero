@@ -1208,7 +1208,7 @@ function goFullscreen(){
   const n=performance.now();if(n-fsAt<4000)return;fsAt=n;
   const d=document.documentElement;
   const lock=()=>{try{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{});}catch(e){}};
-  if(!document.fullscreenElement&&d.requestFullscreen){d.requestFullscreen({navigationUI:'hide'}).then(lock).catch(lock);}else lock();
+  if(!document.fullscreenElement&&d.requestFullscreen&&!(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches)){d.requestFullscreen({navigationUI:'hide'}).then(lock).catch(lock);}else lock();
   if('wakeLock'in navigator&&!wakeLock){navigator.wakeLock.request('screen').then(w=>{wakeLock=w;w.addEventListener('release',()=>{wakeLock=null;});}).catch(()=>{});}
 }
 function handleTap(x,y){
