@@ -1281,9 +1281,10 @@ $('playBtn').onclick = () => {
   player.a = makeAvatar({ skin: '#f5cf4a', shirt: '#3b6bd6', pants: '#3f9b3f' }); player.tag = label(state.name, 0, 0, 0, 1.3, { font: 'bold 44px system-ui, Arial', onTop: true });
   const cp = state.cp || { x: LOC.spawn.x, z: LOC.spawn.z }; player.cp = { x: cp.x, z: cp.z }; teleport(cp.x, cp.z, 8); player.yaw = Math.PI; cam.yaw = (state.cam && state.cam.yaw) || 0;
   $('load').style.display = 'none'; started = true; chat('Server', `Welcome to Idaho Adventure, ${state.name}! 🥔`); chat('Server', 'Talk to Ranger Ruby to begin.'); questUI(); itemUI(); save();
-  if (navigator.serviceWorker) navigator.serviceWorker.register('./sw.js').catch(() => {});
 };
 requestAnimationFrame(frame);
+// offline: cache the game as soon as the page loads (same pattern as the other games); file:// has no service workers
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 window.__IDAHO = { state, player, LOC, npcs, teleport, setStage, learn, award, cam, colliders, collectibles, prompts, ores, arco, talkTo, doPrompt, get busy() { return busy; } };
 </script>
 </body>
