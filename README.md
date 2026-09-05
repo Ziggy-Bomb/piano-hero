@@ -141,6 +141,56 @@ is deployed.
 **Tuning.** `window.__BUS` exposes the game to a headless play-through: a no-tap run scores
 1 star, random tapping about 2, deliberate tapping 3.
 
+## Bonus: Idaho Adventure (Roblox-style 3D explorer for Oliver)
+
+`public/idaho/` is a fourth separate offline app (own manifest, icon and a service
+worker scoped to `/idaho/`), live at `/idaho/` on the Pages site: **Idaho Adventure**,
+a Roblox-lookalike 3D game that teaches the state of Idaho in roughly 20 minutes.
+
+**How it plays.** A classic blocky avatar (yellow head, blue shirt, green trousers,
+name floating overhead) spawns on a studded green baseplate shaped exactly like Idaho,
+with the neighbouring states and Canada as lower plates around it and the Snake River
+moat in between. Roblox-style UI throughout: top-left menu and chat buttons, a
+leaderboard (gems / facts), a quest tracker with a glowing beacon and compass pill,
+a hotbar (map, fact book, badges), "E to talk" proximity prompts, NPC dialogue boxes
+with a typewriter effect, and "Badge Awarded!" toasts. Third-person camera with
+mouse/touch orbit, WASD + Space or a thumb joystick + jump button, Roblox physics
+numbers (walk speed 16, jump power 50, gravity 196.2).
+
+**The quest line** (12 NPC stops, each with facts and a one-question check, then a
+final 10-question exam):
+
+1. Ranger Ruby in Boise — where Idaho is, its seven neighbours, the Panhandle
+2. Mayor Meg at the Capitol — capital, 43rd state (1890), geothermal heating, the blue turf
+3. Shoshone Falls — stepping-stone obby across the river; taller than Niagara, Evel Knievel
+4. Blackfoot potato farm — collect 10 potatoes; a third of America's potatoes
+5. Craters of the Moon — lava-rock obby; Apollo astronauts trained there
+6. Arco — flip four switches; first town lit by atomic power (EBR-1)
+7. Sun Valley — ride the chairlift, ski down collecting star garnets; first chairlift, the Gem State
+8. Borah Peak — spiral ledge climb; highest point, 12,662 ft
+9. Salmon — Sacagawea, Lewis and Clark, the made-up name "Idaho", native peoples
+10. Hells Canyon — climb to the overlook; deepest gorge in North America
+11. Wallace — mine five silver ore; Silver Valley, the Panhandle's two time zones
+12. Lake Pend Oreille — Navy submarine testing, then a seaplane ride back to Boise
+13. Professor Pat's Idaho Expert Exam (8/10 to pass) → certificate + "facts to tell
+    your class" report, always available afterwards from the menu
+
+Walking over a border bridge visits the neighbouring state (with a fact) and zooms
+you back; visiting all seven earns the Border Explorer badge. Gems are scattered
+along the roads, town signs (Lewiston, Moscow, Coeur d'Alene, Pocatello, Idaho Falls,
+Yellowstone, Bruneau Dunes, Perrine Bridge) add extra facts, and everything learned
+lands in the Fact Book. Falling into lava or water respawns at the last checkpoint pad.
+Progress autosaves on the device.
+
+**Offline.** Like the other games it is a single HTML file with zero external requests:
+three.js is inlined into `index.html` (MIT, see `THREE-LICENSE.txt`), so the file can be
+copied straight onto a tablet and opened from the Files app, or installed from the
+deployed site via *Add to Home Screen*. The menu has a *Graphics: low* toggle (no
+shadows) for older iPads; `?low=1` in the URL does the same.
+
+**Tuning.** `window.__IDAHO` exposes the game state, `teleport(x, z)`, `setStage(n)`
+and the collider list for headless play-throughs.
+
 ## Where things live
 
 - `src/audio/` — mic capture, FFT, onset detection, note verification (the pure
