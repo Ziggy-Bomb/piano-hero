@@ -1046,7 +1046,7 @@ cv.addEventListener('pointerdown',e=>{
   lastTouch=tSec;
   if(!fsTried){fsTried=true;
     const d=document.documentElement;
-    if(d.requestFullscreen)d.requestFullscreen().catch(()=>{});
+    if(d.requestFullscreen&&!(matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches))d.requestFullscreen().catch(()=>{});
     try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{});}catch(err){}}
   const x=e.clientX,y=e.clientY;
   sparkleAt(x,y,4);
