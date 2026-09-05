@@ -1,5 +1,5 @@
 // Offline cache for /idaho/ only — separate from the other games and the piano app.
-const CACHE = 'idaho-v1';
+const CACHE = 'idaho-v2';
 const ASSETS = [
   './',
   './index.html',
